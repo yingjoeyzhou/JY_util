@@ -3,7 +3,7 @@ clearvars; close all; clc;
 addpath(genpath(pwd));
 
 global devMode
-devMode  = true; % false; %
+devMode  = true; %false; % 
 freqRIFT = 1440;
 
 
@@ -163,9 +163,11 @@ mR.maskSiz = RIFT.patch.sizepix;
 mR.outerR  = RIFT.patch.sizedeg ./ 2;
 mR.ppd     = scr.ppdX ./ 2; %because of propixx cutting the screen into 4
 mR.degSmoo = 0.2; %in dva
-mmR        = JY_VisExptTools('make_smooth_circular_mask', mR);
-RIFT.patch.img  = ones( RIFT.patch.sizepix ) .* scr.gray;
-RIFT.patch.aper = 1 - mmR;
+mmR        = JY_VisExptTools('make_circular_mask', mR);
+RIFT.patch.img   = ones( RIFT.patch.sizepix ) .* scr.gray;
+RIFT.patch.aper  = 1 - mmR;
+RIFT.patch.outer = mmR;
+% this is for photodiode placement
 RIFT.patch.img0 = RIFT.patch.img .* (1 - mmR) + scr.gray; %aperture = 1-mmR;
 
 
@@ -215,7 +217,6 @@ end
 
 %% inside the trialfun: v1
 %{ %
-tmp = stim.aperture;
 nFlips = durRIFT .* 120; %JYL hard-coded 120 Hz, which is the graphic card's refresh rate
 
 % reshape the freq-tagged signal (i.e., contrast)
@@ -240,7 +241,8 @@ for iFlip = 1:nFlips
         % dioR = bsxfun( @times, RIFT.patch.img .* RIFT.patch.aper, tmpR(1,k,:) ) + stim.patch.patchlum;
         imgL = (trialcfg.S1.img + tmpL(1,k,:)).* stim.aperture + stim.outerpart.*stim.patch.patchlum;
         imgR = (trialcfg.S2.img + tmpR(1,k,:)).* stim.aperture + stim.outerpart.*stim.patch.patchlum;
-        dioR = bsxfun( @times, RIFT.patch.img .* RIFT.patch.aper, tmpR(1,k,:) ) + stim.patch.patchlum;
+        dioR = ( RIFT.patch.img + tmpR(1,k,:)-0.25 ).* RIFT.patch.aper + RIFT.patch.outer.*stim.patch.patchlum;
+        disp( [max(dioR(:,:,1),[],'all'); max(dioR(:,:,2),[],'all'); max(dioR(:,:,3),[],'all')] );
         texL = Screen('MakeTexture',wPtr,imgL);
         texR = Screen('MakeTexture',wPtr,imgR);
         txDioR = Screen('MakeTexture',wPtr,dioR);

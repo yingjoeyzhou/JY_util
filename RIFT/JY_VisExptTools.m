@@ -170,6 +170,27 @@ switch fun_name
         
         output = Y2+Y3;   
         
+    case 'make_circular_mask'
+        global scr
+        
+        patchsiz = cfg.maskSiz;
+        % skirt    = cfg.degSmoo;
+        outerR   = cfg.outerR;
+        
+        if ~isfield( cfg, 'ppd')
+            ppd = scr.ppdX;
+        else
+            ppd = cfg.ppd;
+        end
+        
+        [X,Y] = meshgrid( [1:patchsiz]-(patchsiz+1)/2 );
+        r = sqrt(X.^2 + Y.^2);
+                
+        Y2 = ones(size(r)).*scr.white;% + (scr.white./(skirt*ppd)) .* (r-(outerR-skirt)*ppd);
+        Y2(r<=(outerR*ppd)) = 0;
+            
+        output = Y2;  
+        
     case 'make_gabor' %generates a matrix of a Gabor image
         
         % cfg.patchsiz: patch size (pix)
