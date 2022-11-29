@@ -285,8 +285,7 @@ for iFlip = 1:nFlips
     vbl = Screen('Flip',wPtr);
     tmp = [tmp, vbl];
     
-    if devMode==true, pause(1); end
-    %if iFlip==1; sendtrig(4); end
+    if devMode==true, pause(1); else, if iFlip==1; sendtrig(4); end, end
 end
 
 %% clear up
