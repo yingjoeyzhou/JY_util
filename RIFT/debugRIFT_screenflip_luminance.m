@@ -21,7 +21,7 @@ durRIFT = 8; %in seconds
 %% =========================================================== 
 %% ===              Define the experiment                  ===
 %% ===========================================================
-global wPtr scr stim ctl
+global wPtr scr stim %ctl
 
 
 %% ============ non-MEG stuff ============
@@ -154,9 +154,21 @@ RIFT.patch.sizepix   = ceil( RIFT.patch.sizedeg .* scr.ppdX ./ 2 );
 RIFT.patch.xCtr      = [scr.xCtr, scr.rect(3), scr.xCtr, scr.rect(3)] - RIFT.patch.sizepix/2; %put it to the right bottom corner
 RIFT.patch.yCtr      = [scr.yCtr, scr.yCtr, scr.rect(4), scr.rect(4)] - RIFT.patch.sizepix/2; %put it to the right bottom corner
 RIFT.patch.rectPix   = [0 0 RIFT.patch.sizepix, RIFT.patch.sizepix];
-RIFT.patch.locRects  = cell(4, 1);
+% % RIFT.patch.locRects  = cell(4, 1);
+% % for q = 1:4
+% %     RIFT.patch.locRects{q} = CenterRectOnPoint(RIFT.patch.rectPix, ...
+% %                                     RIFT.patch.xCtr(q), RIFT.patch.yCtr(q));
+% % end
+RIFT.patch.locRectsR = cell(4, 1); %photodiode positions on the right
 for q = 1:4
-    RIFT.patch.locRects{q} = CenterRectOnPoint(RIFT.patch.rectPix, ...
+    RIFT.patch.locRectsR{q} = CenterRectOnPoint(RIFT.patch.rectPix, ...
+                                    RIFT.patch.xCtr(q), RIFT.patch.yCtr(q));
+end
+RIFT.patch.xCtr      = [scr.xCtr, scr.rect(1), scr.xCtr, scr.rect(1)] + RIFT.patch.sizepix/2; %put it to the right bottom corner
+RIFT.patch.yCtr      = [scr.yCtr, scr.yCtr, scr.rect(4), scr.rect(4)] - RIFT.patch.sizepix/2; %put it to the right bottom corner
+RIFT.patch.locRectsL = cell(4, 1); %photodiode positions on the right
+for q = 1:4
+    RIFT.patch.locRectsL{q} = CenterRectOnPoint(RIFT.patch.rectPix, ...
                                     RIFT.patch.xCtr(q), RIFT.patch.yCtr(q));
 end
 mR.maskSiz = RIFT.patch.sizepix;
@@ -182,10 +194,10 @@ Screen('FillRect', wPtr, [repmat(scr.gray,[1,3]),1], scr.rect );
 texDio = Screen('MakeTexture', wPtr, RIFT.patch.img0);
 texPH  = Screen('MakeTexture', wPtr, stim.PH.img);
 for k = 1:4
-    Screen('DrawTextures', wPtr, texDio, [], RIFT.patch.locRects{k});
+    Screen('DrawTextures', wPtr, [texDio,texDio], [], [RIFT.patch.locRectsL{k};RIFT.patch.locRectsR{k}]');
     Screen('DrawTextures', wPtr, [texPH, texPH], [], [RIFT.rect_L{k}; RIFT.rect_R{k}]');
 end
-Screen('Flip', wPtr); pause(1); %KbWait();
+Screen('Flip', wPtr); pause(1); KbWait();
 
 
 
@@ -216,7 +228,6 @@ end
 
 
 %% inside the trialfun: v1
-%{ %
 nFlips = durRIFT .* 120; %JYL hard-coded 120 Hz, which is the graphic card's refresh rate
 
 % reshape the freq-tagged signal (i.e., contrast)
@@ -226,8 +237,13 @@ lumR = reshape( trialcfg.S1TagR, [12, numel(trialcfg.S1TagR)./12] ) .*0.5 + 0.25
 trialcfg.S1.img = trialcfg.S1.img .* 0.5;% .* stim.aperture;% + stim.patch.patchlum;
 trialcfg.S2.img = trialcfg.S2.img .* 0.5;% .* stim.aperture;% + stim.patch.patchlum;
 
-
+% ====== prepare the textures =======
 tmp = [];
+texL = cell( nFlips, 1);
+texR = cell( nFlips, 1);
+txDioR = cell( nFlips, 1);
+txDioL = cell( nFlips, 1);
+cnt    = 0;
 for iFlip = 1:nFlips
     
     tmpL = lumL(:,iFlip);
@@ -236,32 +252,44 @@ for iFlip = 1:nFlips
     tmpR = reshape( tmpR, [1, 4, 3] ); %from 1st to 3rd column, Reds -> Greens -> Blues;
     
     for k = 1:4 %The four quardrants
-        % imgL = bsxfun( @times, trialcfg.S1.img, tmpL(1,k,:) ) + stim.patch.patchlum;
-        % imgR = bsxfun( @times, trialcfg.S2.img, tmpR(1,k,:) ) + stim.patch.patchlum;
-        % dioR = bsxfun( @times, RIFT.patch.img .* RIFT.patch.aper, tmpR(1,k,:) ) + stim.patch.patchlum;
+        
+        cnt = cnt + 1;
+        
         imgL = (trialcfg.S1.img + tmpL(1,k,:)).* stim.aperture + stim.outerpart.*stim.patch.patchlum;
         imgR = (trialcfg.S2.img + tmpR(1,k,:)).* stim.aperture + stim.outerpart.*stim.patch.patchlum;
+        dioL = ( RIFT.patch.img + tmpL(1,k,:)-0.25 ).* RIFT.patch.aper + RIFT.patch.outer.*stim.patch.patchlum;
         dioR = ( RIFT.patch.img + tmpR(1,k,:)-0.25 ).* RIFT.patch.aper + RIFT.patch.outer.*stim.patch.patchlum;
-        disp( [max(dioR(:,:,1),[],'all'); max(dioR(:,:,2),[],'all'); max(dioR(:,:,3),[],'all')] );
-        texL = Screen('MakeTexture',wPtr,imgL);
-        texR = Screen('MakeTexture',wPtr,imgR);
-        txDioR = Screen('MakeTexture',wPtr,dioR);
-        Screen('DrawTextures',wPtr,[texL,texR,txDioR],[],...
-            [RIFT.rect_L{k}; RIFT.rect_R{k}; RIFT.patch.locRects{k}]',[],[]);
+        
+        % disp( [max(dioR(:,:,1),[],'all'); max(dioR(:,:,2),[],'all'); max(dioR(:,:,3),[],'all')] );
+        
+        texL{cnt} = Screen('MakeTexture',wPtr,imgL);
+        texR{cnt} = Screen('MakeTexture',wPtr,imgR);
+        txDioR{cnt} = Screen('MakeTexture',wPtr,dioR);
+        txDioL{cnt} = Screen('MakeTexture',wPtr,dioL);
+    end
+    
+end
+
+
+
+% ======== draw the stimuli ========
+tmp = [];
+cnt = 0;
+for iFlip = 1:nFlips    
+    for k = 1:4 %The four quardrants
+        cnt = cnt + 1;
+        Screen('DrawTextures',wPtr,[texL{cnt},texR{cnt},txDioR{cnt},txDioL{cnt}],[],...
+            [RIFT.rect_L{k}; RIFT.rect_R{k}; RIFT.patch.locRectsR{k}; RIFT.patch.locRectsL{k}]',[],[]);
     end
     
     vbl = Screen('Flip',wPtr);
     tmp = [tmp, vbl];
     
-    if devMode, pause(1); end
-    
-    if iFlip==nFlips; break; end
-    
+    if devMode==true, pause(1); end
+    %if iFlip==1; sendtrig(4); end
 end
-%}
 
-
-
+%% clear up
 sca;
 Datapixx('SetPropixxDlpSequenceProgram', 0); %Revert to standard 120Hz refresh rate
 Datapixx('RegWrRd');
