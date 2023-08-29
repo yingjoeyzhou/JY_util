@@ -1,1 +1,2 @@
-GLMM compatible with M/EEG analysis.
+`demo_singlevox.m` shows a demo on GLMM, compatible with M/EEG analysis.
+`GLM_interaction.mlx` shows the design and contrast matrices of a two-by-three within-subject's GLM.
